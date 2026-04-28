@@ -61,7 +61,7 @@ def _events_for_country_buckets(sess, country: str, buckets: list[str]) -> dict:
         for row in sess.execute(stmt, (country, bucket)):
             rows.append(
                 {
-                    "ts": row.event_time.isoformat() if row.event_time else None,
+                    "ts": row.event_time.isoformat(timespec="microseconds") if row.event_time else None,
                     "event_type": row.event_type,
                     "severity": float(row.severity) if row.severity is not None else None,
                     "title": row.title,

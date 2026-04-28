@@ -32,7 +32,9 @@ st.write(f"Rows for {pick} (last {months_back} months): **{len(df):,}**")
 if df.empty:
     st.info("No data for that selection.")
 else:
-    df["month"] = pd.to_datetime(df["ts"]).dt.strftime("%Y-%m")
+    df["ts"] = pd.to_datetime(df["ts"], format="ISO8601", errors="coerce")
+    df = df.dropna(subset=["ts"])
+    df["month"] = df["ts"].dt.strftime("%Y-%m")
     counts = df.groupby(["month", "event_type"]).size().reset_index(name="n")
     fig = px.bar(counts.sort_values("month"), x="month", y="n", color="event_type",
                  barmode="stack", title=f"{pick} — events per month by type")

@@ -8,6 +8,7 @@ Runs the same query under three conditions and shows wall-clock timings:
 Demonstrates the Spark SQL Performance subtag end-to-end.
 """
 
+import socket
 import time
 
 import pandas as pd
@@ -27,6 +28,16 @@ SELECT e.event_type,
     ON c.cluster_id = 0
  GROUP BY e.event_type, e.country
 """
+
+
+def detect_spark_ui_url() -> str | None:
+    for port in range(4040, 4051):
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.25):
+                return f"http://localhost:{port}"
+        except OSError:
+            continue
+    return None
 
 if st.button("Run benchmark", type="primary"):
     conn = thrift_conn()
@@ -58,8 +69,8 @@ if st.button("Run benchmark", type="primary"):
     results.append(("cached", t_cached))
 
     # 3. Broadcast hint
-    q3 = QUERY_BASE.replace("FROM events_enriched e",
-                            "FROM events_enriched e /*+ BROADCAST(c) */")
+    q3 = QUERY_BASE.replace("SELECT e.event_type,",
+                            "SELECT /*+ BROADCAST(c) */ e.event_type,")
     t0 = time.perf_counter()
     cur.execute(q3)
     cur.fetchall()
@@ -74,7 +85,8 @@ if st.button("Run benchmark", type="primary"):
     st.dataframe(df, use_container_width=True)
     st.bar_chart(df.set_index("condition")["seconds"])
 
-    st.markdown(
-        "Open the Spark UI at http://localhost:4041 (Thrift Server) for the "
-        "physical plans behind each run."
-    )
+    ui_url = detect_spark_ui_url()
+    if ui_url:
+        st.markdown(f"Open the [Spark UI]({ui_url}) for the physical plans behind each run.")
+    else:
+        st.info("Spark UI was not detected on localhost:4040-4050.")
