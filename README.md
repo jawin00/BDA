@@ -38,6 +38,44 @@ pip install -r dashboard/requirements.txt
 streamlit run dashboard/app.py # opens http://localhost:8501
 ```
 
+## Analytics included
+
+The project now includes a full analytics layer on top of the storage and processing pipeline. The dashboard is not just a UI shell around the raw tables - it is an end-to-end analytics surface that validates the HDFS outputs, Spark SQL models, Cassandra time-series table, MongoDB serving collection, and the live Bluesky ingestion path.
+
+### Core analytics themes
+
+- Lakehouse KPI monitoring: total events, active sources, countries covered, event-type diversity, average and median severity, average daily volume, peak-day volume, and country concentration.
+- Temporal analytics: daily source trends, 7-day rolling averages, source share over time, top event-type trend lines, weekday-by-hour activity heatmaps, and source burstiness analysis.
+- Risk and severity analytics: severity histograms, event-type severity box plots, severity-band mix by source, average-severity heatmaps, and country-level risk scatter plots.
+- Geographic analytics: top countries by volume, monthly trend lines for the most affected regions, source-by-country contribution matrices, and latest-activity country summaries.
+- Data quality analytics: raw coordinate coverage, geoparse coverage, country-population coverage, text completeness, classification-confidence coverage, daily quality trends, and per-source completeness heatmaps.
+- Theme and cluster analytics: cluster sizes, average severity per cluster, dominant event type per cluster, top cluster terms, and cluster-by-event-type intensity matrices.
+- Operational analytics: Spark SQL performance benchmarking, Cassandra time-series rollups, MongoDB exploration, and live authenticated Bluesky ingestion metrics.
+
+### Example analytical questions the project can answer
+
+- Which disaster types are accelerating week over week, and which sources are driving the increase?
+- Which countries have both high event volume and high average severity in the current window?
+- How complete is the enriched data by source, and where does geoparsing add the most value?
+- Which clusters contain the most severe events, and what terms dominate those themes?
+- How much faster do Spark SQL queries become with caching and broadcast hints?
+- How many recent live social posts are being captured, and are they reaching the serving store correctly?
+
+### Dashboard walkthrough
+
+1. World Map: interactive global event map backed by MongoDB, filtered by event type, severity, and marker volume.
+2. Lead-Time Analysis: Scala-derived lead-time summaries showing the lag between social chatter and official reporting.
+3. MongoDB Explorer: document-level browsing and filtering against the serving collection used for fast dashboard reads.
+4. Cassandra Time-Series: region and month oriented analytics designed around the Cassandra partition key.
+5. Cluster Themes: TF-IDF plus K-means results with top titles and dominant terms by cluster.
+6. MapReduce Results: Hadoop MapReduce keyword frequencies over the enriched event corpus.
+7. Spark SQL Playground: free-form SQL execution through the Thrift Server for ad hoc analytics.
+8. Performance Lab: side-by-side timing experiments for cold runs, cached runs, and broadcast-hint runs.
+9. Live Bluesky Disaster Stream: live social-signal collection into MongoDB with public or authenticated Bluesky search.
+10. Analytics Hub: cross-source KPI, temporal, severity, geography, quality, and cluster analytics in one place.
+
+These analytics are powered by the same lakehouse outputs exposed through Spark Thrift, MongoDB, and Cassandra, so they double as both insight views and proof that the processing pipeline is actually producing usable analytical tables.
+
 ## Verifying
 
 ```bash
@@ -75,7 +113,7 @@ disaster-intel/
 │   └── streaming/file_source_stream.py
 ├── udfs/                       # GPU classify, severity, geoparse
 ├── thrift/                     # Spark Thrift Server entrypoint
-├── dashboard/                  # Streamlit (8 batch pages + Bluesky live + Reddit live)
+├── dashboard/                  # Streamlit dashboard with maps, live feeds, and analytics hub
 └── docs/                       # architecture, viva_questions, syllabus_mapping, impact_writeup
 ```
 

@@ -70,6 +70,7 @@ st.markdown(
 6. MapReduce Results — Java MR keyword frequency
 7. Spark SQL Playground — write SQL, run via Thrift JDBC
 8. Performance Lab — caching / broadcast / partition pruning timings
-9. Live Bluesky — public AT Protocol search, no credentials needed
+9. Live Bluesky — public/authenticated AT Protocol search into MongoDB
+10. Analytics Hub — KPI cards, temporal patterns, severity, geography, quality, clusters
 """
 )
