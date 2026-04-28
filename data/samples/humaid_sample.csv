@@ -1,0 +1,11 @@
+tweet_id,event_name,class_label,tweet_text
+1001,hurricane_harvey_2017,injured_or_dead_people,"Death toll from Hurricane Harvey rises to 47 in Texas"
+1002,hurricane_harvey_2017,rescue_volunteering_or_donation_effort,"Volunteers needed in Houston for shelter operations, please RT"
+1003,hurricane_harvey_2017,infrastructure_and_utility_damage,"Power outages reported across Harris County, over 100k without electricity"
+1004,kerala_floods_2018,displaced_people_and_evacuations,"Over 200000 evacuated to relief camps in Kerala due to floods"
+1005,kerala_floods_2018,caution_and_advice,"Avoid travel to Wayanad and Idukki, roads blocked by landslides"
+1006,california_wildfires_2018,injured_or_dead_people,"Camp Fire confirmed casualties up to 56 in Paradise, CA"
+1007,california_wildfires_2018,infrastructure_and_utility_damage,"Entire town of Paradise reduced to ash, 9000 structures destroyed"
+1008,nepal_earthquake_2015,rescue_volunteering_or_donation_effort,"Doctors Without Borders deploying teams to Kathmandu valley"
+1009,nepal_earthquake_2015,injured_or_dead_people,"Death toll in Nepal earthquake crosses 7000"
+1010,puebla_earthquake_2017,sympathy_and_support,"Praying for everyone affected by the earthquake in Mexico City"

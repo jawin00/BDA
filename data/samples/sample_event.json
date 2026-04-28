@@ -1,0 +1,10 @@
+{
+  "event_id": "demo-stream-001",
+  "source": "stream-demo",
+  "title": "M5.8 earthquake reported near Manila",
+  "text": "USGS reports a magnitude 5.8 earthquake 25km NE of Manila, Philippines. Buildings shaken, no immediate reports of damage.",
+  "lat": 14.6,
+  "lon": 121.0,
+  "ts": "2026-04-26T10:15:00Z",
+  "country": "PH"
+}
