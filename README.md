@@ -23,7 +23,7 @@ See [`docs/syllabus_mapping.md`](docs/syllabus_mapping.md) for a tag-by-tag map 
 - A Reddit script-app (free, 5 minutes): https://www.reddit.com/prefs/apps
 - A self-chosen ReliefWeb `appname` string (any short identifier).
 
-## Setup
+## Setup (Linux / Docker)
 
 ```bash
 cp .env.example .env
@@ -36,6 +36,33 @@ docker compose up -d           # boots HDFS, Spark, MongoDB, Cassandra, Thrift S
 ./run_pipeline.sh              # runs all 6 pipeline steps
 pip install -r dashboard/requirements.txt
 streamlit run dashboard/app.py # opens http://localhost:8501
+```
+
+## Setup (Windows Native / PowerShell)
+
+If running natively on Windows without Docker, you must have Hadoop, Spark, MongoDB, and Cassandra installed locally.
+
+```powershell
+# 1. Set environment variables
+$env:JAVA_HOME = "C:\jdk11"
+$env:HADOOP_HOME = "C:\hadoop"
+$env:SPARK_HOME = "C:\spark"
+
+# 2. Start HDFS
+cmd /c "C:\hadoop\sbin\start-dfs.cmd"
+
+# 3. Start Cassandra (requires JRE 8 specifically)
+$env:JAVA_HOME = "C:\path\to\jre8"
+Start-Process -FilePath "C:\cassandra\bin\cassandra.bat" -ArgumentList "-f" -WindowStyle Hidden
+
+# 4. Run the full data pipeline
+.\run_pipeline.ps1
+
+# 5. Start the Spark Thrift Server (for SQL queries)
+.\thrift\start_thrift.ps1
+
+# 6. Run the Streamlit Dashboard
+.\.venv\Scripts\streamlit run dashboard\app.py
 ```
 
 ## Analytics included
@@ -64,15 +91,14 @@ The project now includes a full analytics layer on top of the storage and proces
 ### Dashboard walkthrough
 
 1. World Map: interactive global event map backed by MongoDB, filtered by event type, severity, and marker volume.
-2. Lead-Time Analysis: Scala-derived lead-time summaries showing the lag between social chatter and official reporting.
-3. MongoDB Explorer: document-level browsing and filtering against the serving collection used for fast dashboard reads.
-4. Cassandra Time-Series: region and month oriented analytics designed around the Cassandra partition key.
-5. Cluster Themes: TF-IDF plus K-means results with top titles and dominant terms by cluster.
-6. MapReduce Results: Hadoop MapReduce keyword frequencies over the enriched event corpus.
-7. Spark SQL Playground: free-form SQL execution through the Thrift Server for ad hoc analytics.
-8. Performance Lab: side-by-side timing experiments for cold runs, cached runs, and broadcast-hint runs.
-9. Live Bluesky Disaster Stream: live social-signal collection into MongoDB with public or authenticated Bluesky search.
-10. Analytics Hub: cross-source KPI, temporal, severity, geography, quality, and cluster analytics in one place.
+2. MongoDB Explorer: document-level browsing and filtering against the serving collection used for fast dashboard reads.
+3. Cassandra Time-Series: region and month oriented analytics designed around the Cassandra partition key.
+4. Cluster Themes: TF-IDF plus K-means results with top titles and dominant terms by cluster.
+5. MapReduce Results: Hadoop MapReduce keyword frequencies over the enriched event corpus.
+6. Spark SQL Playground: free-form SQL execution through the Thrift Server for ad hoc analytics.
+7. Performance Lab: side-by-side timing experiments for cold runs, cached runs, and broadcast-hint runs.
+8. Live Bluesky Disaster Stream: live social-signal collection into MongoDB with public or authenticated Bluesky search.
+9. Analytics Hub: cross-source KPI, temporal, severity, geography, quality, and cluster analytics in one place.
 
 These analytics are powered by the same lakehouse outputs exposed through Spark Thrift, MongoDB, and Cassandra, so they double as both insight views and proof that the processing pipeline is actually producing usable analytical tables.
 

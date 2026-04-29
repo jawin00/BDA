@@ -34,11 +34,6 @@ with col_a:
         if n is not None:
             st.metric("events", f"{n:,}")
 
-with col_b:
-    st.markdown("**Cassandra**")
-    n = safe_call("Cassandra count", cassandra_count)
-    if n is not None:
-        st.metric("events", f"{n:,}")
 
 with col_c:
     st.markdown("**Spark Thrift**")
