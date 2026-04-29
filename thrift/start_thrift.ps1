@@ -83,7 +83,7 @@ if ($listening) {
         -ArgumentList @(
             "--class", "org.apache.spark.sql.hive.thriftserver.HiveThriftServer2",
             "--master", "local[2]",
-            "--conf", "spark.sql.warehouse.dir=$env:TEMP\spark-warehouse",
+            "--conf", "spark.sql.warehouse.dir=/user/hive/warehouse",
             "--conf", "spark.sql.adaptive.enabled=true",
             "--conf", "spark.driver.bindAddress=127.0.0.1",
             "--conf", "spark.driver.host=127.0.0.1",

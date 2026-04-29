@@ -32,10 +32,10 @@ def slots_for_date(d: dt.date, every_n: int = 1) -> list[str]:
     return urls
 
 
-def fetch_zip(url: str) -> bytes | None:
+def fetch_zip(url: str, session: requests.Session) -> bytes | None:
     for attempt in range(3):
         try:
-            r = requests.get(url, timeout=120)
+            r = session.get(url, timeout=120)
             if r.status_code == 200:
                 return r.content
             if r.status_code == 404:
@@ -46,10 +46,14 @@ def fetch_zip(url: str) -> bytes | None:
     return None
 
 
-def extract_csv(raw: bytes) -> bytes:
+def iter_csv_chunks(raw: bytes, chunk_size: int = 1024 * 1024):
     z = zipfile.ZipFile(io.BytesIO(raw))
     with z.open(z.namelist()[0]) as f:
-        return f.read()
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
 
 
 def main():
@@ -79,21 +83,28 @@ def main():
     print(f"Expected uncompressed: ~{days * slots_per_day * 391 / 1024:.1f} MB")
 
     total_rows = 0
+    session = requests.Session()
+    session.headers.update({"User-Agent": "bda-gdelt-downloader/1.0"})
     for d in tqdm(dates, desc="GDELT days"):
         target = out_dir / f"gdelt_{d.isoformat()}.csv"
         if target.exists() and target.stat().st_size > 10_000:
             continue
-        day_chunks = []
-        for url in slots_for_date(d, every_n=every_n):
-            raw = fetch_zip(url)
-            if raw is None:
-                continue
-            day_chunks.append(extract_csv(raw))
-            time.sleep(0.1)
-        if day_chunks:
-            combined = b"".join(day_chunks)
-            target.write_bytes(combined)
-            total_rows += combined.count(b"\n")
+        tmp_target = target.with_suffix(".csv.part")
+        wrote_any = False
+        with tmp_target.open("wb") as out_f:
+            for url in slots_for_date(d, every_n=every_n):
+                raw = fetch_zip(url, session)
+                if raw is None:
+                    continue
+                for chunk in iter_csv_chunks(raw):
+                    out_f.write(chunk)
+                    total_rows += chunk.count(b"\n")
+                wrote_any = True
+                time.sleep(0.1)
+        if wrote_any:
+            tmp_target.replace(target)
+        else:
+            tmp_target.unlink(missing_ok=True)
 
     total_mb = sum(p.stat().st_size for p in out_dir.glob("gdelt_*.csv")) / 1e6
     print(f"GDELT done: ~{total_rows:,} rows, {total_mb:.1f} MB on disk")

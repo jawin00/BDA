@@ -6,9 +6,12 @@ if (-not $env:HADOOP_HOME) { $env:HADOOP_HOME = "C:\hadoop" }
 if (-not $env:SPARK_HOME)  { $env:SPARK_HOME  = "C:\spark" }
 if (-not $env:JAVA_HOME)   { $env:JAVA_HOME   = "C:\jdk11" }
 $env:Path = "$env:SPARK_HOME\bin;$env:HADOOP_HOME\bin;$env:JAVA_HOME\bin;$env:Path"
+$repoRoot = Resolve-Path "$PSScriptRoot\..\.."
+$sparkLocalDir = Join-Path $env:LOCALAPPDATA "Temp\bda_spark_local"
+New-Item -ItemType Directory -Force -Path $sparkLocalDir | Out-Null
 
 $jobDir = "pipeline\04_lead_time_analyzer"
-$stageRoot = "C:\tmp\bda_spark_stage\lead_time"
+$stageRoot = Join-Path $env:LOCALAPPDATA "Temp\bda_spark_stage\lead_time"
 if (Test-Path $stageRoot) { Remove-Item -LiteralPath $stageRoot -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
 $env:BDA_LEAD_TIME_STAGE = $stageRoot
@@ -29,7 +32,7 @@ Write-Host "[04] submitting Scala Spark job"
     --conf "spark.driver.memory=2g" `
     --conf "spark.driver.bindAddress=127.0.0.1" `
     --conf "spark.driver.host=127.0.0.1" `
-    --conf "spark.local.dir=C:\tmp\spark" `
+    --conf "spark.local.dir=$sparkLocalDir" `
     --class edu.bda.LeadTimeAnalyzer `
     $jar
 if ($LASTEXITCODE -ne 0) { throw "Spark job failed" }

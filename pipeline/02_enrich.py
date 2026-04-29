@@ -120,10 +120,19 @@ def main():
 
     # Step C — severity + geoparse via Spark SQL (proves UDFs are registered).
     enriched.createOrReplaceTempView("events_typed")
+    # Only run geoparse_text on rows that actually need it (missing lat/lon/country).
+    # GDELT already has country code + lat/lon for almost every row, so skipping
+    # those saves millions of Python UDF calls.
     final_df = spark.sql("""
         SELECT *,
                score_severity(coalesce(text, title)) AS severity,
-               geoparse_text(coalesce(text, title)) AS geo
+               CASE
+                 WHEN country IS NOT NULL AND lat IS NOT NULL AND lon IS NOT NULL
+                 THEN named_struct('geo_lat', CAST(NULL AS DOUBLE),
+                                   'geo_lon', CAST(NULL AS DOUBLE),
+                                   'geo_country', CAST(NULL AS STRING))
+                 ELSE geoparse_text(coalesce(text, title))
+               END AS geo
           FROM events_typed
     """).withColumn("geo_lat", F.col("geo.geo_lat")) \
         .withColumn("geo_lon", F.col("geo.geo_lon")) \
@@ -140,7 +149,8 @@ def main():
 
     sources = [r["source"] for r in df.select("source").distinct().collect() if r["source"]]
     parts = {src: final_df.filter(F.col("source") == src) for src in sorted(sources)}
-    write_parts_to_hdfs(parts, OUT, "events_enriched")
+    files_per_key = {"gdelt": 1, "usgs": 2}
+    write_parts_to_hdfs(parts, OUT, "events_enriched", files_per_key=files_per_key)
 
     print("[02] done")
     spark.stop()

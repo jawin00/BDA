@@ -15,10 +15,34 @@ if (-not $env:SPARK_HOME)  { $env:SPARK_HOME  = "C:\spark" }
 if (-not $env:JAVA_HOME)   { $env:JAVA_HOME   = "C:\jdk11" }
 $env:HADOOP_CONF_DIR = "$env:HADOOP_HOME\etc\hadoop"
 $env:Path = "$env:SPARK_HOME\bin;$env:HADOOP_HOME\bin;$env:JAVA_HOME\bin;$env:Path"
+$sparkLocalDir = Join-Path $env:LOCALAPPDATA "Temp\bda_spark_local"
+$sparkStageDir = Join-Path $env:LOCALAPPDATA "Temp\bda_spark_stage"
+New-Item -ItemType Directory -Force -Path $sparkLocalDir, $sparkStageDir | Out-Null
+$env:BDA_SPARK_STAGE = $sparkStageDir
 
 $skipGpu = if ($env:SKIP_GPU) { $env:SKIP_GPU } else { "0" }
-$defaultVenv = if (Test-Path "$PSScriptRoot\.venv-spark311\Scripts\python.exe") { "$PSScriptRoot\.venv-spark311" } else { "$PSScriptRoot\.venv" }
-$venv    = if ($env:VENV) { $env:VENV } else { $defaultVenv }
+
+function Resolve-WorkingVenv {
+    $candidates = @()
+    if ($env:VENV) { $candidates += $env:VENV }
+    $candidates += "$PSScriptRoot\.venv-spark311"
+    $candidates += "$PSScriptRoot\.venv"
+
+    foreach ($venvPath in ($candidates | Select-Object -Unique)) {
+        $py = Join-Path $venvPath "Scripts\python.exe"
+        if (-not (Test-Path $py)) { continue }
+        try {
+            & $py -c "import sys; print(sys.executable)" *> $null
+            if ($LASTEXITCODE -eq 0) { return $venvPath }
+        } catch {
+        }
+        Write-Warning "[run_pipeline] ignoring broken python launcher: $py"
+    }
+
+    throw "[run_pipeline] no working virtualenv python found"
+}
+
+$venv    = Resolve-WorkingVenv
 $python  = "$venv\Scripts\python.exe"
 
 Write-Host "==[run_pipeline] SKIP_GPU=$skipGpu"
@@ -31,20 +55,54 @@ function Invoke-Spark {
     $env:PYSPARK_DRIVER_PYTHON = $python
     $env:Path = "$venv\Scripts;$env:SPARK_HOME\bin;$env:HADOOP_HOME\bin;$env:JAVA_HOME\bin;$env:Path"
     $env:SKIP_GPU = $skipGpu
+    $master = "local[2]"
+    $driverMemory = "2g"
+    $executorMemory = "2g"
+    $shufflePartitions = "4"
+    $extraConfs = @(
+        "--conf", "spark.driver.extraJavaOptions=-XX:ReservedCodeCacheSize=64m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xss512k",
+        "--conf", "spark.executor.extraJavaOptions=-XX:ReservedCodeCacheSize=64m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xss512k"
+    )
+
+    switch ($script) {
+        "pipeline\01_clean_normalize.py" {
+            $master = "local[4]"
+            $driverMemory = "4g"
+            $executorMemory = "4g"
+            $shufflePartitions = "16"
+            $extraConfs = @(
+                "--conf", "spark.sql.parquet.compression.codec=gzip",
+                "--conf", "spark.driver.extraJavaOptions=-XX:MaxDirectMemorySize=1g -Xss512k",
+                "--conf", "spark.executor.extraJavaOptions=-XX:MaxDirectMemorySize=1g -Xss512k"
+            )
+        }
+        "pipeline\02_enrich.py" {
+            $master = "local[4]"
+            $driverMemory = "3g"
+            $executorMemory = "3g"
+            $shufflePartitions = "8"
+        }
+        "pipeline\05_cluster_themes.py" {
+            $master = "local[4]"
+            $driverMemory = "3g"
+            $executorMemory = "3g"
+            $shufflePartitions = "8"
+        }
+    }
+
     & spark-submit `
-        --master "local[2]" `
+        --master $master `
         --conf "spark.hadoop.fs.defaultFS=hdfs://localhost:9000" `
         --conf "spark.pyspark.python=$python" `
         --conf "spark.pyspark.driver.python=$python" `
-        --conf "spark.driver.memory=2g" `
-        --conf "spark.executor.memory=2g" `
+        --conf "spark.driver.memory=$driverMemory" `
+        --conf "spark.executor.memory=$executorMemory" `
         --conf "spark.driver.bindAddress=127.0.0.1" `
         --conf "spark.driver.host=127.0.0.1" `
-        --conf "spark.local.dir=C:\tmp\spark" `
-        --conf "spark.sql.shuffle.partitions=4" `
+        --conf "spark.local.dir=$sparkLocalDir" `
+        --conf "spark.sql.shuffle.partitions=$shufflePartitions" `
         --conf "spark.sql.adaptive.enabled=true" `
-        --conf "spark.driver.extraJavaOptions=-XX:ReservedCodeCacheSize=64m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xss512k" `
-        --conf "spark.executor.extraJavaOptions=-XX:ReservedCodeCacheSize=64m -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xss512k" `
+        @extraConfs `
         @extraArgs `
         $script
     if ($LASTEXITCODE -ne 0) { throw "spark-submit failed for $script" }

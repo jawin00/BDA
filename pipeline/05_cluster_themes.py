@@ -16,6 +16,10 @@ Syllabus tag: Apache Spark (MLlib).
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+# Make repo root importable so we can `from pipeline import ...`.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -66,11 +70,16 @@ def main():
                     maxIter=20)
 
     pipe = Pipeline(stages=[tokenizer, stop, htf, idf, kmeans])
-    model = pipe.fit(df)
+
+    # Fit on a sample (KMeans on 10M+ rows in local mode is too slow);
+    # predict on the full set after.
+    fit_df = df.sample(withReplacement=False, fraction=min(1.0, 500_000 / max(n, 1)), seed=42) if n > 500_000 else df
+    print(f"[05] fitting model on {fit_df.count()} sampled docs")
+    model = pipe.fit(fit_df)
 
     clustered = model.transform(df).drop("doc", "tokens_raw", "tokens", "tf", "features")
     print(f"[05] writing clustered events to {OUT_EVENTS}")
-    write_parquet_to_hdfs(clustered, OUT_EVENTS, "events_clustered", files=4)
+    write_parquet_to_hdfs(clustered, OUT_EVENTS, "events_clustered", files=256)
 
     # Extract top terms per cluster: for each cluster centroid, take the
     # buckets with highest weight, then surface the most common original

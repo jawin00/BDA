@@ -8,8 +8,29 @@ if (-not $env:JAVA_HOME)   { $env:JAVA_HOME   = "C:\jdk11" }
 $env:Path = "$env:SPARK_HOME\bin;$env:HADOOP_HOME\bin;$env:JAVA_HOME\bin;$env:Path"
 
 $repoRoot = Resolve-Path "$PSScriptRoot\..\.."
-$defaultVenv = if (Test-Path "$repoRoot\.venv-spark311\Scripts\python.exe") { "$repoRoot\.venv-spark311" } else { "$repoRoot\.venv" }
-$venv   = if ($env:VENV) { $env:VENV } else { $defaultVenv }
+$sparkLocalDir = Join-Path $env:LOCALAPPDATA "Temp\bda_spark_local"
+New-Item -ItemType Directory -Force -Path $sparkLocalDir | Out-Null
+function Resolve-WorkingVenv {
+    $candidates = @()
+    if ($env:VENV) { $candidates += $env:VENV }
+    $candidates += "$repoRoot\.venv-spark311"
+    $candidates += "$repoRoot\.venv"
+
+    foreach ($venvPath in ($candidates | Select-Object -Unique)) {
+        $py = Join-Path $venvPath "Scripts\python.exe"
+        if (-not (Test-Path $py)) { continue }
+        try {
+            & $py -c "import sys; print(sys.executable)" *> $null
+            if ($LASTEXITCODE -eq 0) { return $venvPath }
+        } catch {
+        }
+        Write-Warning "[03] ignoring broken python launcher: $py"
+    }
+
+    throw "[03] no working virtualenv python found"
+}
+
+$venv   = Resolve-WorkingVenv
 $python = "$venv\Scripts\python.exe"
 
 $input  = "hdfs://localhost:9000/mr_in/keyword_freq"
@@ -26,6 +47,7 @@ $env:Path = "$venv\Scripts;$env:Path"
     --conf "spark.pyspark.python=$python" `
     --conf "spark.pyspark.driver.python=$python" `
     --conf "spark.driver.memory=2g" `
+    --conf "spark.local.dir=$sparkLocalDir" `
     pipeline\03_keyword_freq_mr\stage_input.py
 if ($LASTEXITCODE -ne 0) { throw "stage_input.py failed" }
 

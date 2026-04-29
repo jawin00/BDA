@@ -1,0 +1,18 @@
+[01] usgs: 138161 clean rows
+[01] eonet: 5000 clean rows
+[01] reliefweb: FAILED ([PATH_NOT_FOUND] Path does not exist: hdfs://localhost:9000/raw/reliefweb.)
+[01] gdacs: 2560 clean rows
+[01] gdelt: 9779910 clean rows
+[01] social: 43409 clean rows
+[01] writing up to 9969040 rows to hdfs://localhost:9000/processed/events_raw as per-source subdirs
+[hdfs_commit] streaming local stage C:\Users\ferna\AppData\Local\Temp\bda_spark_stage\events_raw\usgs via PyArrow (files~2)
+[hdfs_commit] uploaded /processed/events_raw/usgs
+[hdfs_commit] streaming local stage C:\Users\ferna\AppData\Local\Temp\bda_spark_stage\events_raw\eonet via PyArrow (files~1)
+[hdfs_commit] uploaded /processed/events_raw/eonet
+[hdfs_commit] streaming local stage C:\Users\ferna\AppData\Local\Temp\bda_spark_stage\events_raw\gdacs via PyArrow (files~1)
+[hdfs_commit] uploaded /processed/events_raw/gdacs
+[hdfs_commit] streaming local stage C:\Users\ferna\AppData\Local\Temp\bda_spark_stage\events_raw\gdelt via PyArrow (files~512)
+[hdfs_commit] uploaded /processed/events_raw/gdelt
+[hdfs_commit] streaming local stage C:\Users\ferna\AppData\Local\Temp\bda_spark_stage\events_raw\social via PyArrow (files~1)
+[hdfs_commit] uploaded /processed/events_raw/social
+[01] done

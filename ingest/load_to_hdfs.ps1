@@ -39,9 +39,20 @@ function Push-ToHdfs {
 
     Write-Host "[load_to_hdfs] put ${src} -> /raw/${dst}"
     hdfs dfs -mkdir -p "/raw/$dst"
-    Get-ChildItem $localDir -Force | ForEach-Object {
-        hdfs dfs -put -f $_.FullName "/raw/$dst/"
-        if ($LASTEXITCODE -ne 0) { throw "failed to upload $($_.FullName) to /raw/$dst" }
+    $files = @(Get-ChildItem $localDir -Force -File | Select-Object -ExpandProperty FullName)
+    if (-not $files) { Write-Host "[load_to_hdfs]   no files"; return }
+    # Batch upload: one hdfs invocation per source, not per file (90+ JVM starts otherwise).
+    $batchSize = 50
+    for ($i = 0; $i -lt $files.Count; $i += $batchSize) {
+        $end = [math]::Min($i + $batchSize - 1, $files.Count - 1)
+        $batch = @($files[$i..$end])
+        Write-Host ("[load_to_hdfs]   batch {0}-{1} of {2}" -f ($i+1), ($end+1), $files.Count)
+        if ($batch.Count -eq 1) {
+            & hdfs dfs -put -f $batch[0] "/raw/$dst/"
+        } else {
+            & hdfs dfs -put -f @batch "/raw/$dst/"
+        }
+        if ($LASTEXITCODE -ne 0) { throw "failed to upload batch to /raw/$dst" }
     }
     $sizeMB = [math]::Round((Get-ChildItem $localDir -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB, 1)
     Write-Host "[load_to_hdfs]   done: ${sizeMB} MB"

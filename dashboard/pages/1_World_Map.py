@@ -24,7 +24,10 @@ with st.sidebar:
     min_sev = st.slider("min severity", 0.0, 1.0, 0.0, step=0.05)
     limit = st.slider("max markers", 100, 5000, 1500, step=100)
 
-q: dict = {"lat": {"$ne": None}, "lon": {"$ne": None}}
+q: dict = {
+    "lat": {"$ne": None, "$gt": -90, "$lt": 90},
+    "lon": {"$ne": None, "$gt": -180, "$lt": 180},
+}
 if pick_type != "all":
     q["event_type"] = pick_type
 if min_sev > 0:

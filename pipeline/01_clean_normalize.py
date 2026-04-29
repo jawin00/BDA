@@ -20,6 +20,10 @@ Syllabus: Spark SQL — Loading and Saving Data, Using in Applications.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+# Make repo root importable so we can `from pipeline import ...`.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
@@ -149,11 +153,11 @@ def load_gdelt(spark: SparkSession) -> DataFrame:
     flat = df.select(
         F.col("_c0").alias("event_id"),
         F.concat_ws(" - ", F.col("_c26"), F.col("_c5"), F.col("_c15")).alias("title"),
-        F.col("_c57").alias("text"),  # SOURCEURL
-        F.col("_c39").cast(DoubleType()).alias("lat"),  # ActionGeo_Lat
-        F.col("_c40").cast(DoubleType()).alias("lon"),  # ActionGeo_Long
+        F.col("_c60").alias("text"),  # SOURCEURL (col 60 in GDELT 2.0)
+        F.col("_c56").cast(DoubleType()).alias("lat"),  # ActionGeo_Lat (col 56)
+        F.col("_c57").cast(DoubleType()).alias("lon"),  # ActionGeo_Long (col 57)
         F.to_timestamp(F.col("_c1"), "yyyyMMdd").alias("ts"),
-        F.col("_c37").alias("country"),  # ActionGeo_CountryCode
+        F.col("_c53").alias("country"),  # ActionGeo_CountryCode (col 53)
     )
     return _select(flat, "gdelt",
                    event_id="event_id", title="title", text="text",
@@ -234,6 +238,7 @@ def main():
     ]
 
     parts: dict = {}
+    row_counts: dict[str, int] = {}
     seen_rows = 0
     for name, fn in loaders:
         try:
@@ -251,6 +256,7 @@ def main():
             if n > 0:
                 seen_rows += n
                 parts[name] = cleaned
+                row_counts[name] = n
         except Exception as exc:
             print(f"[01] {name}: FAILED ({exc})", file=sys.stderr)
 
@@ -260,7 +266,10 @@ def main():
 
     print(f"[01] writing up to {seen_rows} rows to {OUT} as per-source subdirs")
 
-    write_parts_to_hdfs(parts, OUT, "events_raw")
+    # GDELT is the only large source (millions of rows). Give it more output
+    # partitions so it doesn't all funnel through one writer task.
+    files_per_key = {"gdelt": 1, "usgs": 2}
+    write_parts_to_hdfs(parts, OUT, "events_raw", files_per_key=files_per_key, expected_rows_per_key=row_counts)
 
     print("[01] done")
     spark.stop()
